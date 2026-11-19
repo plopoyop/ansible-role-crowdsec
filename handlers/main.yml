@@ -1,0 +1,25 @@
+---
+- name: "Reload systemd"
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: "Reload CrowdSec"
+  ansible.builtin.systemd_service:
+    name: "{{ crowdsec_service_name }}"
+    state: "reloaded"
+  when: crowdsec_service_state != "stopped"
+
+- name: "Restart CrowdSec"
+  ansible.builtin.systemd_service:
+    name: "{{ crowdsec_service_name }}"
+    state: "restarted"
+  when: crowdsec_service_state != "stopped"
+
+- name: "Restart firewall bouncer"
+  ansible.builtin.systemd_service:
+    name: "{{ crowdsec_firewall_bouncer_service_name }}"
+    state: "restarted"
+    daemon_reload: true
+  when:
+    - crowdsec_firewall_bouncer_enabled
+    - crowdsec_service_state != "stopped"

@@ -1,0 +1,28 @@
+---
+# cscli cannot tell whether this engine is already enrolled: a marker file
+# makes enrollment run once. Delete it to enroll again. The key is briefly
+# visible in the process list while cscli runs (cscli only takes it on argv).
+- name: "Enroll in the CrowdSec console"
+  ansible.builtin.command:
+    cmd: "cscli console enroll --name {{ crowdsec_console_instance_name | quote }} {{ crowdsec_console_enrollment_key | quote }}"
+    creates: "{{ crowdsec_config_dir }}/.ansible-console-enrolled"
+  register: crowdsec_console_enroll
+  failed_when: false
+  no_log: true
+  notify: "Restart CrowdSec"
+
+- name: "Report a failed enrollment"
+  ansible.builtin.fail:
+    msg: >-
+      Console enrollment failed:
+      {{ crowdsec_console_enroll.stderr | default('') | replace(crowdsec_console_enrollment_key, '<key>') }}
+  when: crowdsec_console_enroll.rc | default(0) != 0
+
+- name: "Mark the console enrollment"
+  ansible.builtin.copy:
+    content: "Enrolled by Ansible as {{ crowdsec_console_instance_name }}\n"
+    dest: "{{ crowdsec_config_dir }}/.ansible-console-enrolled"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  when: not ansible_check_mode

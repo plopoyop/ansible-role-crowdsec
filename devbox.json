@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.21.0/.schema/devbox.schema.json",
+  "packages": [
+    "ansible-doctor@8.4.4",
+    "ansible-lint@25.8.2",
+    "git@2.56.0",
+    "glibcLocales@2.44-57",
+    "go-task@3.53.1",
+    "podman@6.1.4",
+    "prek@0.5.10",
+    "python314Packages.ansible@14.6.0",
+    "python314Packages.molecule@26.8.0",
+    "python314Packages.molecule-plugins@25.8.12",
+    "python314Packages.yamllint@1.37.1"
+  ],
+  "env": {
+    "CONTAINERS_STORAGE_CONF": "${DEVBOX_PROJECT_ROOT}/devbox.d/podman/storage.conf"
+  },
+  "shell": {
+    "init_hook": []
+  }
+}

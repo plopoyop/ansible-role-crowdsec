@@ -1,0 +1,63 @@
+---
+- name: "Install deb822_repository dependency"
+  ansible.builtin.apt:
+    name: "python3-debian"
+    state: "present"
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: "Add the official CrowdSec repository"
+  ansible.builtin.deb822_repository:
+    name: "crowdsec"
+    types: ["deb"]
+    uris: ["{{ crowdsec_repository_url }}/{{ crowdsec_repository_distribution }}"]
+    suites: ["{{ crowdsec_repository_suite }}"]
+    components: ["main"]
+    signed_by: "{{ crowdsec_repository_key_url }}"
+    state: "present"
+  register: crowdsec_repository
+
+- name: "Gather installed packages"
+  ansible.builtin.package_facts:
+
+# Written before the packages: their postinst scripts read the effective
+# configuration (the bouncer takes the local API port from `cscli config show`).
+- name: "Create the configuration directory"
+  ansible.builtin.file:
+    path: "{{ crowdsec_config_dir }}"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Write config.yaml.local"
+  ansible.builtin.template:
+    src: "etc/crowdsec/config.yaml.local.j2"
+    dest: "{{ crowdsec_config_dir }}/config.yaml.local"
+    owner: "root"
+    group: "root"
+    mode: "0600"
+  when: crowdsec_config | length > 0
+  notify: "Restart CrowdSec"
+
+- name: "Remove config.yaml.local"
+  ansible.builtin.file:
+    path: "{{ crowdsec_config_dir }}/config.yaml.local"
+    state: "absent"
+  when: crowdsec_config | length == 0
+  notify: "Restart CrowdSec"
+
+# Installed before the bouncer: the bouncer package registers itself against
+# the local API only when CrowdSec is already present. The cache is refreshed
+# whenever CrowdSec is missing, so a failed first run recovers.
+- name: "Install CrowdSec"
+  ansible.builtin.apt:
+    name: "crowdsec"
+    state: "{{ crowdsec_package_state }}"
+    update_cache: "{{ crowdsec_repository is changed or 'crowdsec' not in ansible_facts['packages'] }}"
+
+- name: "Install the firewall bouncer"
+  ansible.builtin.apt:
+    name: "{{ crowdsec_firewall_bouncer_package }}"
+    state: "{{ crowdsec_package_state }}"
+  when: crowdsec_firewall_bouncer_enabled

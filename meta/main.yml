@@ -1,0 +1,30 @@
+---
+galaxy_info:
+  namespace: plopoyop
+  role_name: crowdsec
+  description: "Install & configure CrowdSec and its firewall bouncer from the official repository"
+  author: Clément Hubert
+
+  issue_tracker_url: "https://github.com/plopoyop/ansible-role-crowdsec/issues"
+
+  license: "MPL-2.0"
+
+  min_ansible_version: "2.19"
+
+  platforms:
+    - name: "Debian"
+      versions:
+        - "trixie"
+        - "bookworm"
+    - name: "Ubuntu"
+      versions:
+        - "noble"
+
+  galaxy_tags:
+    - crowdsec
+    - security
+    - firewall
+    - nftables
+    - homelab
+
+dependencies: []

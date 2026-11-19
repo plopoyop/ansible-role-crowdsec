@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+{{ {
+  "name": "plopoyop/ansible-whitelist",
+  "description": "Addresses never banned (crowdsec_whitelist_ips / crowdsec_whitelist_cidrs)",
+  "whitelist": {
+    "reason": "whitelisted by Ansible",
+    "ip": crowdsec_whitelist_ips,
+    "cidr": crowdsec_whitelist_cidrs,
+  },
+} | to_nice_yaml(indent=2) }}

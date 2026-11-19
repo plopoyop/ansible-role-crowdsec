@@ -1,0 +1,9 @@
+# Devbox
+.devbox/
+
+# direnv
+.direnv
+
+.ansible/
+
+.task

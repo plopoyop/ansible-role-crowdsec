@@ -1,0 +1,30 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  vars:
+    crowdsec_config:
+      common:
+        log_level: "info"
+    crowdsec_collections:
+      - "crowdsecurity/linux"
+      - "crowdsecurity/caddy"
+    crowdsec_scenarios:
+      - "crowdsecurity/http-probing"
+    crowdsec_acquisitions:
+      - name: "caddy"
+        config:
+          filenames: ["/var/log/caddy/*.log"]
+          labels:
+            type: "caddy"
+    crowdsec_whitelist_ips:
+      - "203.0.113.9"
+    crowdsec_whitelist_cidrs:
+      - "192.0.2.0/24"
+    crowdsec_firewall_bouncer_restart_with: "nftables.service"
+    crowdsec_firewall_bouncer_config:
+      update_frequency: "5s"
+  tasks:
+    - name: "Import role"
+      ansible.builtin.import_role:
+        name: "plopoyop.crowdsec"

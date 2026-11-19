@@ -1,0 +1,167 @@
+---
+- name: "Create the acquisition directory"
+  ansible.builtin.file:
+    path: "{{ crowdsec_config_dir }}/acquis.d"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Write acquisitions"
+  ansible.builtin.template:
+    src: "etc/crowdsec/acquis.d/acquisition.yaml.j2"
+    dest: "{{ crowdsec_config_dir }}/acquis.d/{{ item.name }}.yaml"
+    owner: "root"
+    group: "root"
+    # Some datasources hold credentials (loki, kafka, http...).
+    mode: "0600"
+  loop: "{{ crowdsec_acquisitions }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: "Reload CrowdSec"
+
+# Files written by this role carry crowdsec_managed_marker; others (e.g.
+# setup.*.yaml from the package) are left alone.
+- name: "Find acquisitions managed by Ansible"
+  ansible.builtin.find:
+    paths: "{{ crowdsec_config_dir }}/acquis.d"
+    patterns: "*.yaml"
+    # `contains` is matched from the start of each line.
+    contains: "^# {{ crowdsec_managed_marker | regex_escape }}$"
+  register: crowdsec_acquisitions_managed
+
+- name: "Remove acquisitions no longer declared"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "absent"
+  loop: "{{ crowdsec_acquisitions_managed.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: (item.path | basename | regex_replace('\\.yaml$', '')) not in (crowdsec_acquisitions | map(attribute='name'))
+  notify: "Reload CrowdSec"
+
+- name: "Create the local enrich parsers directory"
+  ansible.builtin.file:
+    path: "{{ crowdsec_config_dir }}/parsers/s02-enrich"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+
+- name: "Write the local whitelist"
+  ansible.builtin.template:
+    src: "etc/crowdsec/parsers/s02-enrich/ansible-whitelist.yaml.j2"
+    dest: "{{ crowdsec_config_dir }}/parsers/s02-enrich/ansible-whitelist.yaml"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  when: (crowdsec_whitelist_ips + crowdsec_whitelist_cidrs) | length > 0
+  notify: "Reload CrowdSec"
+
+- name: "Remove the local whitelist"
+  ansible.builtin.file:
+    path: "{{ crowdsec_config_dir }}/parsers/s02-enrich/ansible-whitelist.yaml"
+    state: "absent"
+  when: (crowdsec_whitelist_ips + crowdsec_whitelist_cidrs) | length == 0
+  notify: "Reload CrowdSec"
+
+- name: "Write the firewall bouncer local configuration"
+  ansible.builtin.template:
+    src: "etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml.local.j2"
+    dest: "{{ crowdsec_config_dir }}/bouncers/crowdsec-firewall-bouncer.yaml.local"
+    owner: "root"
+    group: "root"
+    mode: "0600"
+  when:
+    - crowdsec_firewall_bouncer_enabled
+    - crowdsec_firewall_bouncer_config | length > 0
+  notify: "Restart firewall bouncer"
+
+- name: "Remove the firewall bouncer local configuration"
+  ansible.builtin.file:
+    path: "{{ crowdsec_config_dir }}/bouncers/crowdsec-firewall-bouncer.yaml.local"
+    state: "absent"
+  when:
+    - crowdsec_firewall_bouncer_enabled
+    - crowdsec_firewall_bouncer_config | length == 0
+  notify: "Restart firewall bouncer"
+
+# The bouncer only creates its tables at startup: follow the firewall unit
+# (stop/restart via PartOf, reload via an extra ExecReload on that unit).
+- name: "Create systemd drop-in directories"
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.d"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0755"
+  loop:
+    - "{{ crowdsec_firewall_bouncer_service_name }}.service"
+    - "{{ crowdsec_firewall_bouncer_restart_with }}"
+  when:
+    - crowdsec_firewall_bouncer_enabled
+    - crowdsec_firewall_bouncer_restart_with | length > 0
+
+- name: "Bind the firewall bouncer to the firewall unit"
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ crowdsec_firewall_bouncer_service_name }}.service.d/ansible-restart-with.conf"
+    content: |
+      # {{ crowdsec_managed_marker }}
+      [Unit]
+      After={{ crowdsec_firewall_bouncer_restart_with }}
+      PartOf={{ crowdsec_firewall_bouncer_restart_with }}
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  when:
+    - crowdsec_firewall_bouncer_enabled
+    - crowdsec_firewall_bouncer_restart_with | length > 0
+  notify: "Restart firewall bouncer"
+
+- name: "Restart the firewall bouncer on firewall reloads"
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ crowdsec_firewall_bouncer_restart_with }}.d/crowdsec-firewall-bouncer.conf"
+    content: |
+      # {{ crowdsec_managed_marker }}
+      # PartOf= on the bouncer only propagates stop/restart: Wants= starts it
+      # again with the firewall after a stop/start.
+      [Unit]
+      Wants={{ crowdsec_firewall_bouncer_service_name }}.service
+
+      [Service]
+      ExecReload=/bin/systemctl --no-block try-restart {{ crowdsec_firewall_bouncer_service_name }}.service
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  when:
+    - crowdsec_firewall_bouncer_enabled
+    - crowdsec_firewall_bouncer_restart_with | length > 0
+  notify: "Restart firewall bouncer"
+
+- name: "Remove the firewall unit binding"
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ crowdsec_firewall_bouncer_service_name }}.service.d/ansible-restart-with.conf"
+    state: "absent"
+  when: crowdsec_firewall_bouncer_restart_with | length == 0
+  notify: "Restart firewall bouncer"
+
+- name: "Find firewall unit drop-ins written by this role"
+  ansible.builtin.find:
+    paths: "/etc/systemd/system"
+    patterns: "crowdsec-firewall-bouncer.conf"
+    recurse: true
+    contains: "^# {{ crowdsec_managed_marker | regex_escape }}$"
+  register: crowdsec_firewall_dropins
+
+- name: "Remove firewall unit drop-ins no longer wanted"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "absent"
+  loop: "{{ crowdsec_firewall_dropins.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: >-
+    not crowdsec_firewall_bouncer_enabled
+    or crowdsec_firewall_bouncer_restart_with | length == 0
+    or item.path != "/etc/systemd/system/" ~ crowdsec_firewall_bouncer_restart_with ~ ".d/crowdsec-firewall-bouncer.conf"
+  notify: "Reload systemd"

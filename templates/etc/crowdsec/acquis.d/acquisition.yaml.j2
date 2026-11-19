@@ -1,0 +1,3 @@
+# {{ ansible_managed }}
+# {{ crowdsec_managed_marker }}
+{{ item.config | to_nice_yaml(indent=2) }}

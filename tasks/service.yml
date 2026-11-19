@@ -1,0 +1,16 @@
+---
+- name: "Apply pending configuration"
+  ansible.builtin.meta: "flush_handlers"
+
+- name: "Set the CrowdSec service state"
+  ansible.builtin.systemd_service:
+    name: "{{ crowdsec_service_name }}"
+    enabled: "{{ crowdsec_service_enabled }}"
+    state: "{{ crowdsec_service_state }}"
+
+- name: "Set the firewall bouncer service state"
+  ansible.builtin.systemd_service:
+    name: "{{ crowdsec_firewall_bouncer_service_name }}"
+    enabled: "{{ crowdsec_service_enabled }}"
+    state: "{{ crowdsec_service_state }}"
+  when: crowdsec_firewall_bouncer_enabled
