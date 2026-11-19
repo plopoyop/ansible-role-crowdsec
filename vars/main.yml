@@ -1,0 +1,28 @@
+---
+# Releases the official repository does not publish yet, mapped to the
+# closest published suite (static Go binaries, only depend on coreutils).
+# Drop an entry once https://packagecloud.io/crowdsec/crowdsec/<distro>/dists/<release>/Release exists.
+crowdsec_repository_suite_fallback:
+  trixie: "bookworm"
+
+crowdsec_repository_url: "https://packagecloud.io/crowdsec/crowdsec"
+crowdsec_repository_key_url: "https://packagecloud.io/crowdsec/crowdsec/gpgkey"
+
+crowdsec_service_name: "crowdsec"
+crowdsec_firewall_bouncer_service_name: "crowdsec-firewall-bouncer"
+
+crowdsec_config_dir: "/etc/crowdsec"
+crowdsec_hub_types:
+  collections: "{{ crowdsec_collections }}"
+  parsers: "{{ crowdsec_parsers }}"
+  scenarios: "{{ crowdsec_scenarios }}"
+
+# Marks acquisition files written by this role (stale ones are removed).
+crowdsec_managed_marker: "Managed by the plopoyop.crowdsec Ansible role"
+
+# Allowlist holding crowdsec_whitelist_ips + crowdsec_whitelist_cidrs.
+crowdsec_allowlist_name: "ansible"
+crowdsec_allowlist_values: "{{ crowdsec_whitelist_ips + crowdsec_whitelist_cidrs }}"
+
+# cscli is missing in check mode on a host where CrowdSec is not installed yet.
+crowdsec_cscli_available: "{{ not ansible_check_mode or 'crowdsec' in ansible_facts['packages'] }}"

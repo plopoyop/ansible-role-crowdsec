@@ -1,0 +1,33 @@
+---
+- name: "Update the hub index"
+  ansible.builtin.command:
+    cmd: "cscli hub update"
+  changed_when: false
+  when: crowdsec_cscli_available
+
+- name: "List installed hub items"
+  ansible.builtin.command:
+    cmd: "cscli {{ item.key }} list -o json"
+  loop: "{{ crowdsec_hub_types | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when:
+    - crowdsec_cscli_available
+    - item.value | length > 0
+  register: crowdsec_hub_installed
+  changed_when: false
+  check_mode: false
+
+- name: "Install missing hub items"
+  ansible.builtin.command:
+    cmd: "cscli {{ item.item.key }} install {{ crowdsec_hub_missing | join(' ') }}"
+  vars:
+    crowdsec_hub_missing: >-
+      {{ item.item.value | difference((item.stdout | from_json)[item.item.key] | default([], true)
+      | map(attribute='name') | list) }}
+  loop: "{{ crowdsec_hub_installed.results | selectattr('skipped', 'undefined') | list }}"
+  loop_control:
+    label: "{{ item.item.key }}: {{ crowdsec_hub_missing | join(', ') }}"
+  when: crowdsec_hub_missing | length > 0
+  changed_when: true
+  notify: "Reload CrowdSec"

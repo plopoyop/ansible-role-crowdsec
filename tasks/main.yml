@@ -1,0 +1,26 @@
+---
+- name: "Import prepare tasks"
+  ansible.builtin.import_tasks: "prepare.yml"
+
+- name: "Import install tasks"
+  ansible.builtin.import_tasks: "install.yml"
+
+- name: "Import configure tasks"
+  ansible.builtin.import_tasks: "configure.yml"
+
+- name: "Import hub tasks"
+  ansible.builtin.import_tasks: "hub.yml"
+
+- name: "Import service tasks"
+  ansible.builtin.import_tasks: "service.yml"
+
+# `cscli allowlists list` goes through the local API: needs CrowdSec running.
+- name: "Import allowlist tasks"
+  ansible.builtin.import_tasks: "allowlist.yml"
+  when:
+    - crowdsec_service_state != "stopped"
+    - crowdsec_cscli_available
+
+- name: "Import console tasks"
+  ansible.builtin.import_tasks: "console.yml"
+  when: crowdsec_console_enrollment_key | length > 0

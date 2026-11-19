@@ -1,0 +1,37 @@
+---
+- name: "Check the distribution is supported"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in ["Debian", "Ubuntu"]
+    fail_msg: "Only Debian and Ubuntu are supported (official CrowdSec apt repository)"
+    quiet: true
+
+- name: "Check the firewall bouncer flavour"
+  ansible.builtin.assert:
+    that:
+      - crowdsec_firewall_bouncer_package in ["crowdsec-firewall-bouncer-nftables", "crowdsec-firewall-bouncer-iptables"]
+    fail_msg: "Unknown firewall bouncer package {{ crowdsec_firewall_bouncer_package }}"
+    quiet: true
+  when: crowdsec_firewall_bouncer_enabled
+
+- name: "Check acquisitions have a name and a config"
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.name is match('^[A-Za-z0-9_.-]+$')
+      - item.config is mapping
+    fail_msg: "crowdsec_acquisitions entries need a file-safe name and a config mapping"
+    quiet: true
+  loop: "{{ crowdsec_acquisitions }}"
+  loop_control:
+    label: "{{ item.name | default('?') }}"
+
+- name: "Check the firewall unit name"
+  ansible.builtin.assert:
+    that:
+      - crowdsec_firewall_bouncer_restart_with is match('^[A-Za-z0-9@_.:-]+\\.(service|target)$')
+    fail_msg: >-
+      crowdsec_firewall_bouncer_restart_with must be a full unit name such as
+      "nftables.service", got "{{ crowdsec_firewall_bouncer_restart_with }}"
+    quiet: true
+  when: crowdsec_firewall_bouncer_restart_with | length > 0

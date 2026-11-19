@@ -1,0 +1,155 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: "Gather service facts"
+      ansible.builtin.service_facts:
+
+    - name: "Check services are running"
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['crowdsec.service'].state == "running"
+          - ansible_facts.services['crowdsec-firewall-bouncer.service'].state == "running"
+        quiet: true
+
+    - name: "Check the local API answers"
+      ansible.builtin.command:
+        cmd: "cscli lapi status"
+      changed_when: false
+
+    - name: "List bouncers"
+      ansible.builtin.command:
+        cmd: "cscli bouncers list -o json"
+      register: verify_bouncers
+      changed_when: false
+
+    - name: "List collections and scenarios"
+      ansible.builtin.command:
+        cmd: "cscli {{ item }} list -o json"
+      loop: ["collections", "scenarios"]
+      register: verify_hub
+      changed_when: false
+
+    - name: "List parsers in use"
+      ansible.builtin.command:
+        cmd: "cscli parsers list -o json"
+      register: verify_parsers
+      changed_when: false
+
+    - name: "Check bouncer, hub items, acquisition and whitelist"
+      ansible.builtin.assert:
+        that:
+          - verify_bouncers.stdout | from_json | length == 1
+          - "'crowdsecurity/caddy' in (verify_hub.results[0].stdout | from_json).collections | map(attribute='name')"
+          - "'crowdsecurity/http-probing' in (verify_hub.results[1].stdout | from_json).scenarios | map(attribute='name')"
+          - "(verify_parsers.stdout | from_json).parsers | selectattr('local_path', 'defined')
+            | selectattr('local_path', 'search', 'ansible-whitelist') | list | length == 1"
+        quiet: true
+
+    - name: "Inspect the allowlist"
+      ansible.builtin.command:
+        cmd: "cscli allowlists inspect ansible -o json"
+      register: verify_allowlist
+      changed_when: false
+
+    - name: "Check the allowlist content"
+      ansible.builtin.assert:
+        that:
+          - (verify_allowlist.stdout | from_json)['items'] | map(attribute='value') | sort == ["192.0.2.0/24", "203.0.113.9"]
+        quiet: true
+
+    - name: "Ban a test address"
+      ansible.builtin.command:
+        cmd: "cscli decisions add --ip 198.51.100.7 --duration 5m --reason molecule"
+      changed_when: true
+
+    - name: "Wait for the bouncer to push it to nftables"
+      ansible.builtin.command:
+        cmd: "nft list ruleset"
+      register: verify_nft
+      until: "'198.51.100.7' in verify_nft.stdout"
+      retries: 12
+      delay: 5
+      changed_when: false
+
+    # nftables.conf starts with `flush ruleset`: the bouncer must come back.
+    - name: "Reload nftables"
+      ansible.builtin.systemd_service:
+        name: "nftables"
+        state: "reloaded"
+
+    - name: "Wait for the ban to be back in nftables"
+      ansible.builtin.command:
+        cmd: "nft list ruleset"
+      register: verify_nft_reload
+      until: "'198.51.100.7' in verify_nft_reload.stdout"
+      retries: 12
+      delay: 5
+      changed_when: false
+
+    - name: "Unban the test address"
+      ansible.builtin.command:
+        cmd: "cscli decisions delete --ip 198.51.100.7"
+      changed_when: true
+
+    # PartOf= only propagates stop/restart; Wants= on nftables starts the
+    # bouncer again.
+    - name: "Stop nftables"
+      ansible.builtin.systemd_service:
+        name: "nftables"
+        state: "stopped"
+
+    - name: "Start nftables"
+      ansible.builtin.systemd_service:
+        name: "nftables"
+        state: "started"
+
+    - name: "Wait for the bouncer to be back"
+      ansible.builtin.service_facts:
+      register: verify_bouncer_back
+      until: verify_bouncer_back.ansible_facts.services['crowdsec-firewall-bouncer.service'].state == "running"
+      retries: 12
+      delay: 5
+
+    # Undeclared acquisitions and the firewall binding must be cleaned up.
+    - name: "Gather facts for the second role run"
+      ansible.builtin.setup:
+
+    - name: "Apply the role without acquisitions nor firewall binding"
+      ansible.builtin.include_role:
+        name: "plopoyop.crowdsec"
+      vars:
+        crowdsec_acquisitions: []
+        crowdsec_firewall_bouncer_restart_with: ""
+        crowdsec_whitelist_ips: []
+        crowdsec_whitelist_cidrs: []
+
+    - name: "Stat files that must be gone"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "/etc/crowdsec/acquis.d/caddy.yaml"
+        - "/etc/systemd/system/nftables.service.d/crowdsec-firewall-bouncer.conf"
+        - "/etc/systemd/system/crowdsec-firewall-bouncer.service.d/ansible-restart-with.conf"
+        - "/etc/crowdsec/parsers/s02-enrich/ansible-whitelist.yaml"
+      register: verify_removed
+
+    - name: "Check removed files"
+      ansible.builtin.assert:
+        that:
+          - verify_removed.results | selectattr('stat.exists') | list | length == 0
+        fail_msg: "{{ verify_removed.results | selectattr('stat.exists') | map(attribute='item') | list }}"
+        quiet: true
+
+    - name: "List allowlists after removal"
+      ansible.builtin.command:
+        cmd: "cscli allowlists list -o json"
+      register: verify_allowlists_after
+      changed_when: false
+
+    - name: "Check the allowlist was deleted"
+      ansible.builtin.assert:
+        that:
+          - (verify_allowlists_after.stdout | from_json | default([], true)) | selectattr('name', 'equalto', 'ansible') | list | length == 0
+        quiet: true

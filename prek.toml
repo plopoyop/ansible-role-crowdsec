@@ -1,0 +1,28 @@
+# Hooks run by prek on every commit (`task prepare` installs the git hook).
+
+[[repos]]
+repo = "https://github.com/pre-commit/pre-commit-hooks"
+rev = "v6.0.0"
+hooks = [
+  { id = "trailing-whitespace" },
+  { id = "end-of-file-fixer" },
+  { id = "check-added-large-files" },
+  { id = "check-merge-conflict" },
+  { id = "check-symlinks" },
+  { id = "check-yaml" },
+  { id = "detect-private-key" },
+]
+
+[[repos]]
+repo = "https://github.com/adrienverge/yamllint.git"
+rev = "v1.38.0"
+hooks = [
+  { id = "yamllint", name = "yamllint", files = '\.(yaml|yml)$' },
+]
+
+[[repos]]
+repo = "https://github.com/ansible/ansible-lint.git"
+rev = "v26.10.1"
+hooks = [
+  { id = "ansible-lint", name = "ansible lint", files = '\.(yaml|yml)$', additional_dependencies = ["ansible"] },
+]

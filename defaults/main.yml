@@ -1,0 +1,137 @@
+---
+# @var crowdsec_package_state
+# @var crowdsec_package_state:type: string
+# @var crowdsec_package_state:description: >
+# State of the CrowdSec packages: "present" (upgrades left to apt /
+# unattended-upgrades) or "latest" (upgrade on every run)
+crowdsec_package_state: "present"
+
+# @var crowdsec_repository_distribution
+# @var crowdsec_repository_distribution:type: string
+# @var crowdsec_repository_distribution:description: >
+# Distribution path of the official CrowdSec apt repository (debian or ubuntu)
+crowdsec_repository_distribution: "{{ ansible_facts['distribution'] | lower }}"
+
+# @var crowdsec_repository_suite
+# @var crowdsec_repository_suite:type: string
+# @var crowdsec_repository_suite:description: >
+# Suite of the official CrowdSec apt repository. Defaults to the host
+# release, except releases not published yet by CrowdSec (see
+# crowdsec_repository_suite_fallback in vars/main.yml).
+crowdsec_repository_suite: >-
+  {{ crowdsec_repository_suite_fallback.get(ansible_facts['distribution_release'],
+  ansible_facts['distribution_release']) }}
+
+# @var crowdsec_service_enabled
+# @var crowdsec_service_enabled:type: boolean
+# @var crowdsec_service_enabled:description: >
+# Enable the CrowdSec and firewall bouncer services on boot
+crowdsec_service_enabled: true
+
+# @var crowdsec_service_state
+# @var crowdsec_service_state:type: string
+# @var crowdsec_service_state:description: >
+# State of the CrowdSec and firewall bouncer services
+crowdsec_service_state: "started"
+
+# @var crowdsec_config
+# @var crowdsec_config:type: dict
+# @var crowdsec_config:description: >
+# Settings merged by CrowdSec over /etc/crowdsec/config.yaml, written to
+# /etc/crowdsec/config.yaml.local (removed when empty)
+crowdsec_config: {}
+
+# @var crowdsec_collections
+# @var crowdsec_collections:type: list
+# @var crowdsec_collections:description: >
+# Hub collections to install (never removed by the role)
+# @var crowdsec_collections:example: >
+# crowdsec_collections:
+#   - "crowdsecurity/linux"
+#   - "crowdsecurity/caddy"
+#   - "crowdsecurity/base-http-scenarios"
+#   - "crowdsecurity/http-cve"
+crowdsec_collections:
+  - "crowdsecurity/linux"
+
+# @var crowdsec_parsers
+# @var crowdsec_parsers:type: list
+# @var crowdsec_parsers:description: >
+# Extra hub parsers to install (never removed by the role)
+crowdsec_parsers: []
+
+# @var crowdsec_scenarios
+# @var crowdsec_scenarios:type: list
+# @var crowdsec_scenarios:description: >
+# Extra hub scenarios to install (never removed by the role)
+crowdsec_scenarios: []
+
+# @var crowdsec_acquisitions
+# @var crowdsec_acquisitions:type: list
+# @var crowdsec_acquisitions:description: >
+# Log sources, one file /etc/crowdsec/acquis.d/<name>.yaml each.
+# `config` is the CrowdSec acquisition document.
+# @var crowdsec_acquisitions:example: >
+# crowdsec_acquisitions:
+#   - name: "caddy"
+#     config:
+#       filenames: ["/var/log/caddy/*.log"]
+#       labels:
+#         type: "caddy"
+crowdsec_acquisitions: []
+
+# @var crowdsec_whitelist_ips
+# @var crowdsec_whitelist_ips:type: list
+# @var crowdsec_whitelist_ips:description: >
+# IP addresses never banned: local whitelist parser (alerts from logs) and
+# CrowdSec allowlist "ansible" (also filters blocklists and manual decisions)
+crowdsec_whitelist_ips: []
+
+# @var crowdsec_whitelist_cidrs
+# @var crowdsec_whitelist_cidrs:type: list
+# @var crowdsec_whitelist_cidrs:description: >
+# Networks never banned (same mechanisms as crowdsec_whitelist_ips),
+# e.g. the LAN and VPN
+crowdsec_whitelist_cidrs: []
+
+# @var crowdsec_firewall_bouncer_enabled
+# @var crowdsec_firewall_bouncer_enabled:type: boolean
+# @var crowdsec_firewall_bouncer_enabled:description: >
+# Install the firewall bouncer, registered against the local API by its package.
+# Setting it back to false does not uninstall an already installed bouncer.
+crowdsec_firewall_bouncer_enabled: true
+
+# @var crowdsec_firewall_bouncer_package
+# @var crowdsec_firewall_bouncer_package:type: string
+# @var crowdsec_firewall_bouncer_package:description: >
+# Firewall bouncer flavour: crowdsec-firewall-bouncer-nftables or
+# crowdsec-firewall-bouncer-iptables
+crowdsec_firewall_bouncer_package: "crowdsec-firewall-bouncer-nftables"
+
+# @var crowdsec_firewall_bouncer_config
+# @var crowdsec_firewall_bouncer_config:type: dict
+# @var crowdsec_firewall_bouncer_config:description: >
+# Settings merged over the bouncer configuration, written to
+# /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml.local (removed when empty)
+crowdsec_firewall_bouncer_config: {}
+
+# @var crowdsec_firewall_bouncer_restart_with
+# @var crowdsec_firewall_bouncer_restart_with:type: string
+# @var crowdsec_firewall_bouncer_restart_with:description: >
+# Firewall unit whose reload/restart wipes the bouncer tables (a ruleset
+# starting with `flush ruleset`, e.g. "nftables.service"). The bouncer is then
+# restarted with it through systemd drop-ins. Empty: no drop-ins.
+crowdsec_firewall_bouncer_restart_with: ""
+
+# @var crowdsec_console_enrollment_key
+# @var crowdsec_console_enrollment_key:type: string
+# @var crowdsec_console_enrollment_key:description: >
+# Enrollment key of app.crowdsec.net (optional; keep it in a vault). Enrollment
+# runs once, then must be accepted in the console.
+crowdsec_console_enrollment_key: ""
+
+# @var crowdsec_console_instance_name
+# @var crowdsec_console_instance_name:type: string
+# @var crowdsec_console_instance_name:description: >
+# Name of this engine in the CrowdSec console
+crowdsec_console_instance_name: "{{ inventory_hostname }}"
