@@ -11,7 +11,7 @@
     "python314Packages.ansible@14.6.0",
     "python314Packages.molecule@26.8.0",
     "python314Packages.molecule-plugins@25.8.12",
-    "python314Packages.yamllint@1.37.1"
+    "python314Packages.yamllint@1.38.0"
   ],
   "env": {
     "CONTAINERS_STORAGE_CONF": "${DEVBOX_PROJECT_ROOT}/devbox.d/podman/storage.conf"
