@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/plopoyop/ansible-role-crowdsec/tree/0.1.1) (2026-11-22)
+
+[Full Changelog](https://github.com/plopoyop/ansible-role-crowdsec/compare/0.1.0...0.1.1)
+
+## ⚙️ Dependencies
+
+- fix\(ci\): update renovatebot/github-action action \(v46.3.13 → v46.3.14\) [\#2](https://github.com/plopoyop/ansible-role-crowdsec/pull/2) ([plopoyop](https://github.com/plopoyop))
+
 ## [0.1.0](https://github.com/plopoyop/ansible-role-crowdsec/tree/0.1.0) (2026-11-19)
 
 [Full Changelog](https://github.com/plopoyop/ansible-role-crowdsec/compare/1146dfa95fbdde2059d4a364a16b4b5f1d69d1c7...0.1.0)
