@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.1](https://github.com/plopoyop/ansible-role-crowdsec/tree/0.1.1) (2026-11-22)
+## [0.1.1](https://github.com/plopoyop/ansible-role-crowdsec/tree/0.1.1) (2026-11-24)
 
 [Full Changelog](https://github.com/plopoyop/ansible-role-crowdsec/compare/0.1.0...0.1.1)
 
