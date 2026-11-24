@@ -1,5 +1,16 @@
 # plopoyop.crowdsec
 
+> [!WARNING]
+> **This role is deprecated and this repository is archived.** It now lives in the
+> [`plopoyop.personal_network_gateway`](https://github.com/plopoyop/ansible-collection-personal_network_gateway)
+> collection as `plopoyop.personal_network_gateway.crowdsec`, with the same variables:
+>
+> ```shell
+> ansible-galaxy collection install plopoyop.personal_network_gateway
+> ```
+>
+> Then replace `plopoyop.crowdsec` with `plopoyop.personal_network_gateway.crowdsec` in your playbooks.
+
 Install & configure CrowdSec and its firewall bouncer from the official repository
 
 ## Table of contents
